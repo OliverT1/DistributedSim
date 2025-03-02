@@ -17,10 +17,14 @@ class SimBuilder:
     '''
     SimBuilder is used to spawn processes and connect them together for distributed training.
     Spawns multiple TrainNode instances. TrainNode should be the same no matter rank topology/architecture.
+    
+    You can customize the train node class by setting config.train_node_class.
     '''
     def __init__(self, 
                  config: SimConfig):
         self.config = config
+        # Allow customization of the train node class
+        self.train_node_class = getattr(config, 'train_node_class', TrainNode)
 
     @abstractmethod
     def _build_connection(self):
@@ -34,7 +38,8 @@ class SimBuilder:
 
         self._build_connection()
 
-        sim = TrainNode(self.config,
+        # Use the configured train node class
+        sim = self.train_node_class(self.config,
                   self.device,
                   self.rank)
         
@@ -132,7 +137,7 @@ class DistributedSimBuilder(SimBuilder):
         rank = int(os.environ.get("RANK", getattr(self.config, "node_rank", 0)))
         self.rank = rank
         self._build_connection()
-        sim = TrainNode(self.config, self.device, self.rank)
+        sim = self.train_node_class(self.config, self.device, self.rank)
         sim.train()
         self._process_cleanup()
 
